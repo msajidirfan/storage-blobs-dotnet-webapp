@@ -13,17 +13,15 @@
 
 namespace WebApp_Storage_DotNet.Controllers
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Web.Mvc;
-    using System.Web;
-    using System.Threading.Tasks;
-    using System.IO;
-    using Microsoft.WindowsAzure;
     using Microsoft.WindowsAzure.Storage;
     using Microsoft.WindowsAzure.Storage.Blob;
-    using Microsoft.Azure;
+    using System;
+    using System.Collections.Generic;
     using System.Configuration;
+    using System.IO;
+    using System.Threading.Tasks;
+    using System.Web;
+    using System.Web.Mvc;
 
     /// <summary> 
     /// Azure Blob Storage Photo Gallery - Demonstrates how to use the Blob Storage service.  
@@ -42,7 +40,6 @@ namespace WebApp_Storage_DotNet.Controllers
     /// - Blob Service C# API - http://go.microsoft.com/fwlink/?LinkID=398944 
     /// - Delegating Access with Shared Access Signatures - http://azure.microsoft.com/en-us/documentation/articles/storage-dotnet-shared-access-signature-part-1/ 
     /// </summary> 
-
     public class HomeController : Controller
     {
         static CloudBlobClient blobClient;
@@ -63,7 +60,7 @@ namespace WebApp_Storage_DotNet.Controllers
             {
                 // Retrieve storage account information from connection string
                 // How to create a storage connection string - http://msdn.microsoft.com/en-us/library/azure/ee758697.aspx
-                CloudStorageAccount storageAccount = CloudStorageAccount.Parse(ConfigurationManager.AppSettings["StorageConnectionString"].ToString());
+                CloudStorageAccount storageAccount = CloudStorageAccount.Parse(ConfigurationManager.AppSettings["StorageConnectionString"]);
 
                 // Create a blob client for interacting with the blob service.
                 blobClient = storageAccount.CreateCloudBlobClient();
@@ -80,7 +77,7 @@ namespace WebApp_Storage_DotNet.Controllers
                 List<Uri> allBlobs = new List<Uri>();
                 foreach (IListBlobItem blob in blobContainer.ListBlobs())
                 {
-                    if (blob.GetType() == typeof(CloudBlockBlob))
+                    if (blob is CloudBlockBlob)
                         allBlobs.Add(blob.Uri);
                 }
 
@@ -91,7 +88,7 @@ namespace WebApp_Storage_DotNet.Controllers
                 ViewData["message"] = ex.Message;
                 ViewData["trace"] = ex.StackTrace;
                 return View("Error");
-            } 
+            }
         }
 
         /// <summary> 
@@ -112,7 +109,7 @@ namespace WebApp_Storage_DotNet.Controllers
                     for (int i = 0; i < fileCount; i++)
                     {
                         CloudBlockBlob blob = blobContainer.GetBlockBlobReference(GetRandomBlobName(files[i].FileName));
-                        await blob.UploadFromFileAsync(files[i].FileName, FileMode.Open);
+                        await blob.UploadFromStreamAsync(files[i].InputStream);
                     }
                 }
                 return RedirectToAction("Index");
@@ -122,7 +119,7 @@ namespace WebApp_Storage_DotNet.Controllers
                 ViewData["message"] = ex.Message;
                 ViewData["trace"] = ex.StackTrace;
                 return View("Error");
-            }            
+            }
         }
 
         /// <summary> 
@@ -163,9 +160,10 @@ namespace WebApp_Storage_DotNet.Controllers
             {
                 foreach (var blob in blobContainer.ListBlobs())
                 {
-                    if (blob.GetType() == typeof(CloudBlockBlob))
+                    var blockBlob = blob as CloudBlockBlob;
+                    if (blockBlob != null)
                     {
-                        await ((CloudBlockBlob)blob).DeleteIfExistsAsync();
+                        await blockBlob.DeleteIfExistsAsync();
                     }
                 }
 
@@ -182,10 +180,10 @@ namespace WebApp_Storage_DotNet.Controllers
         /// <summary> 
         /// string GetRandomBlobName(string filename): Generates a unique random file name to be uploaded  
         /// </summary> 
-        private string GetRandomBlobName(string filename)
+        private static string GetRandomBlobName(string filename)
         {
             string ext = Path.GetExtension(filename);
-            return string.Format("{0:10}_{1}{2}", DateTime.Now.Ticks, Guid.NewGuid(), ext);
+            return $"{DateTime.Now.Ticks:10}_{Guid.NewGuid()}{ext}";
         }
     }
 }
